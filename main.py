@@ -10,12 +10,19 @@ load_dotenv()
 client_id = os.getenv("SPOTIFY_CLIENT_ID")
 client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
 
-auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
-sp = spotipy.Spotify(auth_manager=auth_manager)
+# -----------------------------------------------------------------------------#
+# helper functions
+# -----------------------------------------------------------------------------#
 
-app = Flask(__name__)
+def load_selected_artists():
+    try:
+        with open("selected_artists.json", "r") as file:
+            data = json.load(file)
+        return data
+    except FileNotFoundError:
+        print("Error: output.json not found.")
+        return []
 
-selected_artists = []
 
 def get_possible_artists(artist_name):
     result = sp.search(q=f'artist:{artist_name}', type='artist', limit=10)
@@ -32,6 +39,22 @@ def get_possible_artists(artist_name):
         artist_data.append((artist['name'], artist['id'], image_url, artist['popularity']))
 
     return artist_data
+
+# -----------------------------------------------------------------------------#
+# globals functions
+# -----------------------------------------------------------------------------#
+
+auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+sp = spotipy.Spotify(auth_manager=auth_manager)
+
+app = Flask(__name__)
+
+selected_artists = load_selected_artists()
+
+
+# -----------------------------------------------------------------------------#
+# flask routes
+# -----------------------------------------------------------------------------#
 
 @app.route('/', methods=['GET'])
 def home():
@@ -58,13 +81,6 @@ def add_artist():
 @app.route('/send_to_esp32')
 def send_to_esp32():
     print("Sending selected artists to ESP32...")
-
-    # write to file
-    data = {
-        "name": "Alice",
-        "age": 30,
-        "city": "New York"
-    }
 
     with open("selected_artists.json", "w") as file:
         json.dump(selected_artists, file)
