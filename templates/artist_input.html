@@ -8,28 +8,28 @@
 <body class="p-5">
     <h1 class="mb-4">Search and Select an Artist</h1>
 
-    <form method="POST" class="mb-4">
+    <!-- Search Form -->
+    <form method="POST" class="mb-5">
         <div class="input-group">
-            <input type="text" name="artistName" class="form-control" placeholder="Enter artist name" required>
+            <input type="text" name="artistName" class="form-control" placeholder="Search for an artist..." required>
             <button type="submit" class="btn btn-success">Search</button>
         </div>
     </form>
 
+    <!-- Search Results -->
     {% if artist_data %}
-        <div class="row">
-            {% for name, artist_id, image_url, popularity in artist_data %}
+        <div class="row mb-5">
+            {% for name, artist_id, image_url, _ in artist_data %}
                 <div class="col-md-4 mb-4">
-                    <div class="card">
+                    <div class="card h-100">
                         {% if image_url %}
                             <img src="{{ image_url }}" class="card-img-top" alt="Artist image">
                         {% endif %}
                         <div class="card-body">
                             <h5 class="card-title">{{ name }}</h5>
-                            <p>Popularity: {{ popularity }}/100</p>
                             <form method="POST" action="{{ url_for('add_artist') }}">
                                 <input type="hidden" name="name" value="{{ name }}">
                                 <input type="hidden" name="id" value="{{ artist_id }}">
-                                <input type="hidden" name="popularity" value="{{ popularity }}">
                                 <button type="submit" class="btn btn-primary">Add to List</button>
                             </form>
                         </div>
@@ -38,5 +38,25 @@
             {% endfor %}
         </div>
     {% endif %}
+
+    <hr class="my-5">
+
+    <!-- Manual Entry Form -->
+    <div>
+        <h4>Add Artist Manually</h4>
+        <form method="POST" action="{{ url_for('add_artist') }}" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="manualName" class="form-label">Artist Name</label>
+                <input type="text" class="form-control" name="name" id="manualName" required>
+            </div>
+            <div class="col-md-5">
+                <label for="manualId" class="form-label">Spotify Artist ID</label>
+                <input type="text" class="form-control" name="id" id="manualId" required>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-secondary w-100">Add Manually</button>
+            </div>
+        </form>
+    </div>
 </body>
 </html>
