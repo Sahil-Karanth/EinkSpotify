@@ -7,8 +7,12 @@ import json
 
 load_dotenv()
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# TODO make capitals
 client_id = os.getenv("SPOTIFY_CLIENT_ID")
 client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+artist_json_path = os.path.join(BASE_DIR, "selected_artists.json")
 
 # -----------------------------------------------------------------------------#
 # helper functions
@@ -16,7 +20,7 @@ client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
 
 def load_selected_artists():
     try:
-        with open("selected_artists.json", "r") as file:
+        with open(artist_json_path, "r") as file:
             data = json.load(file)
         return data
     except FileNotFoundError:
@@ -84,7 +88,9 @@ def select_artists():
         artist_name = request.form.get('artistName')
         artist_data = get_possible_artists(artist_name)
     
-    return render_template('artist_input.html', artist_data=artist_data)
+    select_artists_path = os.path.join(BASE_DIR, "templates", "artist_input.html")
+
+    return render_template(select_artists_path, artist_data=artist_data)
 
 @app.route('/add_artist', methods=['POST'])
 def add_artist():
@@ -98,7 +104,7 @@ def add_artist():
 def send_to_esp32():
     print("Sending selected artists to ESP32...")
 
-    with open("selected_artists.json", "w") as file:
+    with open(artist_json_path, "w") as file:
         json.dump(selected_artists, file)
 
     return "Data sent to ESP32!"
@@ -115,5 +121,3 @@ if __name__ == '__main__':
             break
         else:
             print("Unknown command. Please enter 'launch' or 'quit'.")
-            
-
