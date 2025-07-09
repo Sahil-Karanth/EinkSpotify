@@ -1,33 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for
-import json
+from datetime import datetime
 
 from spotipy_setup import *
 
 load_dotenv()
 
-
-
-
 # -----------------------------------------------------------------------------#
-# helper functions
+# globals
 # -----------------------------------------------------------------------------#
-
-
-
-
-
-
-
-# -----------------------------------------------------------------------------#
-# globals functions
-# -----------------------------------------------------------------------------#
-
-
 
 app = Flask(__name__)
 
 selected_artists = load_selected_artists()
-
 
 # -----------------------------------------------------------------------------#
 # flask routes
@@ -64,11 +48,38 @@ def remove_artist(artist_id):
 
 @app.route('/save_artist_change')
 def save_artist_change():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-    with open(ARTIST_JSON_PATH, "w") as file:
-        json.dump(selected_artists, file)
+    # Delete everything
+    cursor.execute("DELETE FROM selected_artists")
 
-    return "<h3>Artist selection updated!<h3>"
+    # Re-insert all artists from the list
+    for artist in selected_artists:
+
+        most_recent_song = get_most_recent_song(artist['id'])
+
+        cursor.execute(
+            """
+            INSERT INTO selected_artists (id, name, most_recent_song, last_updated)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                artist['id'],
+                artist['name'],
+                most_recent_song,
+                artist.get('last_updated', datetime.now().isoformat())
+            )
+        )
+
+    conn.commit()
+    conn.close()
+
+    return "<h3>Artist selection updated!</h3>"
+
+# -----------------------------------------------------------------------------#
+# main
+# -----------------------------------------------------------------------------#
 
 if __name__ == '__main__':
 

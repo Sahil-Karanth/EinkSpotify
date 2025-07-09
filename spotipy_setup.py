@@ -2,28 +2,51 @@ import os
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
-import json
-
+import sqlite3
 
 load_dotenv()
+
+# -----------------------------------------------------------------------------#
+# globals
+# -----------------------------------------------------------------------------#
+
+DB_PATH = 'artists.db'
 
 CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ARTIST_JSON_PATH = os.path.join(BASE_DIR, "selected_artists.json")
+# ARTIST_JSON_PATH = os.path.join(BASE_DIR, "selected_artists.json")
 
 auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 sp = spotipy.Spotify(auth_manager=auth_manager)
 
+# -----------------------------------------------------------------------------#
+# spotify helper functions
+# -----------------------------------------------------------------------------#
+
 def load_selected_artists():
-    try:
-        with open(ARTIST_JSON_PATH, "r") as file:
-            data = json.load(file)
-        return data
-    except FileNotFoundError:
-        print("Error: output.json not found.")
-        return []
+
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute("SELECT name, id, image_url, most_recent_song, last_updated FROM selected_artists")
+        db_tuples = c.fetchall()
+
+        artists = []
+
+        for db_tuple in db_tuples:
+            
+            artist = {
+                'name': db_tuple[0],
+                'id': db_tuple[1],
+                'image_url': db_tuple[2],
+                'most_recent_song': db_tuple[3],
+                'last_updated': db_tuple[4]
+            }
+            
+            artists.append(artist)
+
+        return artists
 
 
 def get_possible_artists(artist_name):
