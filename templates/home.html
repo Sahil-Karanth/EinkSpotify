@@ -12,8 +12,12 @@
         <ul class="list-group mb-5">
             {% for artist in selected_artists %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                    {{ artist.name }}
-                    <span class="badge bg-secondary">{{ artist.id }}</span>
+                    <div>
+                        <strong>{{ artist.name }}</strong> <small class="text-muted">({{ artist.id }})</small>
+                    </div>
+                    <form action="{{ url_for('remove_artist', artist_id=artist.id) }}" method="POST" style="margin: 0;">
+                        <button class="btn btn-sm btn-danger">Remove</button>
+                    </form>
                 </li>
             {% endfor %}
         </ul>
@@ -23,7 +27,7 @@
 
     <div class="d-flex gap-3">
         <a href="{{ url_for('select_artists') }}" class="btn btn-primary">Select Artists</a>
-        <a href="{{ url_for('send_to_esp32') }}" class="btn btn-success">Send to ESP32</a>
+        <a href="{{ url_for('save_artist_change') }}" class="btn btn-success">Save Changes</a>
     </div>
 </body>
 </html>
