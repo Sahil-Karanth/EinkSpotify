@@ -3,6 +3,7 @@ import os
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -53,6 +54,22 @@ def add_artist():
     popularity = request.form.get('popularity')
     selected_artists.append({'name': name, 'id': artist_id, 'popularity': popularity})
     return redirect(url_for('home'))
+
+@app.route('/send_to_esp32')
+def send_to_esp32():
+    print("Sending selected artists to ESP32...")
+
+    # write to file
+    data = {
+        "name": "Alice",
+        "age": 30,
+        "city": "New York"
+    }
+
+    with open("selected_artists.json", "w") as file:
+        json.dump(selected_artists, file)
+
+    return "Data sent to ESP32!"
 
 if __name__ == '__main__':
     app.run(port=5000)
