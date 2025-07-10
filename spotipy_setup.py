@@ -75,8 +75,8 @@ def get_most_recent_song(artist_id):
         tracks = sp.album_tracks(album_id)
         if tracks['items']:
             latest_track = tracks['items'][0]
-            print(f"\nMost Recent Song: {latest_track['name']}")
-            print(f"Spotify URL: {latest_track['external_urls']['spotify']}")
-            return
+            # print(f"\nMost Recent Song: {latest_track['name']}")
+            # print(f"Spotify URL: {latest_track['external_urls']['spotify']}")
+            return latest_track['name']
     
-    print("No tracks found in latest releases.")
+    # print("No tracks found in latest releases.")
