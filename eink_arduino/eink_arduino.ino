@@ -1,13 +1,15 @@
 #include <Arduino.h>
 #include "EPD.h"            // E-paper display library
 #include "pic_scenario.h"   // Header file containing image data
-#include <WiFi.h>           // Wi-Fi library
+// #include <WiFi.h>           // Wi-Fi library
+#include <WiFiMulti.h>
 #include <WebServer.h>      // Web server library
 #include <ESPmDNS.h>        // mDNS library
+#include "secrets.h"
+
+WiFiMulti wifiMulti;
 
 
-const char* ssid = "";
-const char* password = "";
 const char* mdns_hostname = "epaper";
 
 #define Max_CharNum_PerLine 37
@@ -56,36 +58,40 @@ void handleUpdate() {
 void setup() {
 
   // serial for debugging
-  Serial.begin(115200);
+  Serial.begin(9600);
   delay(100);
 
   // turn on screen
   pinMode(7, OUTPUT);
   digitalWrite(7, HIGH);
 
-  // wifi connect
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to Wi-Fi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nConnected!");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
+  wifiMulti.addAP(HOME_WIFI_SSID, HOME_WIFI_PWD);
+  wifiMulti.addAP("FlatWiFi", "flatpass");
 
-  // mDNS setup
-  if (!MDNS.begin(mdns_hostname)) {
-    Serial.println("Error setting up mDNS responder!");
-    while(1) { delay(1000); }
-  }
-  Serial.printf("mDNS responder started. Hostname: http://%s.local\n", mdns_hostname);
+  if (wifiMulti.run() == WL_CONNECTED) {
+    String ssid = WiFi.SSID();
+    Serial.println("Connected to: " + ssid);
 
-  // web server configure
-  server.on("/update", handleUpdate);
-  server.begin();
-  Serial.println("HTTP server started.");
+    if (ssid == "EE-Hub-54Cn") {
+      // mDNS mode
+      if (!MDNS.begin(mdns_hostname)) {
+        Serial.println("Error setting up mDNS responder!");
+        while(1) { delay(1000); }
+      }
+
+      // web server configure
+      server.on("/update", handleUpdate);
+      server.begin();
+      Serial.println("HTTP server started.");
+
+
+    } else {
+      // Firebase mode
+    }
+  } else {
+    // fallback to WiFiManager or config portal
+  }
+
   
   EPD_Init();                     // Initialize the EPD e-paper display
   EPD_Clear(0, 0, 296, 128, WHITE); // Clear the area from (0,0) to (296,128) on the screen, background color is white
