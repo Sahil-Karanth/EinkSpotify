@@ -2,17 +2,70 @@ import requests
 import time
 from collections import deque
 from spotipy_setup import *
+from dotenv import load_dotenv
+import json
+import os
+
+load_dotenv()
 
 UPDATE_INTERVAL = 1 # ! SMALL FOR TESTING
 MAX_TEXT_LENGTH_ALLOWED = 15
 NUM_DISPLAY_ENTRIES = 5
 
+FIREBASE_URL = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device.json"
+
 # "http://epaper.local/" (mDNS arduino side)
 ESP32_HOSTNAME = "epaper.local" 
 URL = f"http://{ESP32_HOSTNAME}/update"
-def send_message_to_display(message):
-    print(f"Attempting to send '{message}' to {ESP32_HOSTNAME}...")
+
+def authenticate_and_get_token():
+    """Authenticate with Firebase and get an ID token"""
+    api_key = os.getenv("FIREBASE_API_KEY")
+    email = os.getenv("FIREBASE_EMAIL")
+    password = os.getenv("FIREBASE_PASSWORD")
     
+    auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+    
+    auth_data = {
+        "email": email,
+        "password": password,
+        "returnSecureToken": True
+    }
+    
+    response = requests.post(auth_url, json=auth_data)
+    
+    if response.status_code == 200:
+        return response.json()["idToken"]
+    else:
+        print(f"Authentication failed: {response.text}")
+        return None
+
+def send_message_to_display(message):
+    # Get authenticated token
+    token = authenticate_and_get_token()
+    if not token:
+        print("Failed to authenticate with Firebase")
+        return
+
+    # Send to Firebase with auth token
+    firebase_url_with_auth = f"{FIREBASE_URL}?auth={token}"
+    
+    data = {"message": message}
+    
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    response = requests.put(firebase_url_with_auth, data=json.dumps(data), headers=headers)
+
+    if response.status_code == 200:
+        print("Success! Message written to Firebase.")
+    else:
+        print(f"Failed to write to Firebase: {response.status_code}")
+        print(response.text)
+
+    # ESP32 communication (unchanged)
+    print(f"Attempting to send '{message}' to {ESP32_HOSTNAME}...")
     try:
         # Set a timeout to avoid waiting forever if the device isn't found
         response = requests.get(URL, params={'message': message}, timeout=10)

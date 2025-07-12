@@ -1,14 +1,17 @@
 #include <Arduino.h>
 #include "EPD.h"            // E-paper display library
 #include "pic_scenario.h"   // Header file containing image data
-// #include <WiFi.h>           // Wi-Fi library
 #include <WiFiMulti.h>
 #include <WebServer.h>      // Web server library
 #include <ESPmDNS.h>        // mDNS library
 #include "secrets.h"
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 WiFiMulti wifiMulti;
 
+const char* firebaseHost = "eink-spotify-middleman-default-rtdb.firebaseio.com";
+const char* databasePath = "/messages/from_device.json";
 
 const char* mdns_hostname = "epaper";
 
@@ -51,6 +54,51 @@ void handleUpdate() {
   }
 }
 
+void readAndDisplayFromFirebase() {
+
+  // Firebase mode
+  HTTPClient http;
+  String url = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device.json";
+
+  http.begin(url);
+  int httpCode = http.GET();
+
+  if (httpCode == 200) {
+    String payload = http.getString();
+    Serial.println("Firebase payload:");
+    Serial.println(payload);
+
+    // Parse JSON
+    const size_t capacity = JSON_OBJECT_SIZE(2) + 100;
+    DynamicJsonDocument doc(capacity);
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error) {
+      Serial.print("deserializeJson() failed: ");
+      Serial.println(error.f_str());
+    } else {
+      String message = doc["message"] | "";
+
+      Serial.println("Displaying message: " + message);
+      Long_Text_Display(0, 0, message.c_str(), 24, BLACK);
+      EPD_DisplayImage(ImageBW);
+      EPD_FastUpdate();
+    }
+  } else {
+    Serial.printf("Firebase GET failed: %s\n", http.errorToString(httpCode).c_str());
+  }
+
+  http.end();
+
+  // Sleep for 12 hours
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  esp_sleep_enable_timer_wakeup(43200LL * 1000000ULL); // 12 hours
+  esp_deep_sleep_start();
+
+}
+
+
 //======================================================================
 // main functions
 //======================================================================
@@ -65,6 +113,15 @@ void setup() {
   pinMode(7, OUTPUT);
   digitalWrite(7, HIGH);
 
+  EPD_Init();                     // Initialize the EPD e-paper display
+  EPD_Clear(0, 0, 296, 128, WHITE); // Clear the area
+  EPD_ALL_Fill(WHITE);           // Fill screen with white
+  EPD_Update();                  // Apply clearing
+  EPD_Clear_R26H();              // Clear buffer
+
+  Long_Text_Display(0, 0, startup_message, 24, BLACK);
+  EPD_FastUpdate();
+
   wifiMulti.addAP(HOME_WIFI_SSID, HOME_WIFI_PWD);
   wifiMulti.addAP("FlatWiFi", "flatpass");
 
@@ -72,11 +129,11 @@ void setup() {
     String ssid = WiFi.SSID();
     Serial.println("Connected to: " + ssid);
 
-    if (ssid == "EE-Hub-54Cn") {
+    if (ssid != HOME_WIFI_SSID) {
       // mDNS mode
       if (!MDNS.begin(mdns_hostname)) {
         Serial.println("Error setting up mDNS responder!");
-        while(1) { delay(1000); }
+        while (1) { delay(1000); }
       }
 
       // web server configure
@@ -84,31 +141,22 @@ void setup() {
       server.begin();
       Serial.println("HTTP server started.");
 
-
     } else {
-      // Firebase mode
+      // // Firebase mode
+      readAndDisplayFromFirebase();
     }
+
   } else {
-    // fallback to WiFiManager or config portal
+    // NO NETWORK FOUND
+    Serial.println("No WiFi networks found.");
   }
 
-  
-  EPD_Init();                     // Initialize the EPD e-paper display
-  EPD_Clear(0, 0, 296, 128, WHITE); // Clear the area from (0,0) to (296,128) on the screen, background color is white
-  EPD_ALL_Fill(WHITE);           // Fill the entire screen with white
-  EPD_Update();                  // Update the screen display content to make the clear operation take effect
-  EPD_Clear_R26H();              // Clear the R26H area of the screen
-
-  Long_Text_Display(0, 0, startup_message, 24, BLACK); // THIS DISPLAY WORKS
-
-  EPD_DisplayImage(ImageBW);    // Display the image stored in the ImageBW array
-  EPD_FastUpdate();             // Quickly update the screen content
-  //  EPD_PartUpdate(); // Commented-out code, possibly used to update a part of the screen
-  EPD_Sleep();                  // Set the screen to sleep mode to reduce power consumption
+  EPD_Sleep();
 }
 
+
 void loop() {
-  // Check for incoming web server requests
+  // Check for incoming web server requests (mDNS pathway)
   server.handleClient();
 }
 
