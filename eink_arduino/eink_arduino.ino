@@ -10,10 +10,7 @@
 
 WiFiMulti wifiMulti;
 
-const char* firebaseHost = "eink-spotify-middleman-default-rtdb.firebaseio.com";
-const char* databasePath = "/messages/from_device.json";
-
-const char* mdns_hostname = "epaper";
+const char* mdns_hostname = "sahil-epaper.local";
 
 #define Max_CharNum_PerLine 37
 extern uint8_t ImageBW[ALLSCREEN_BYTES];
@@ -58,7 +55,7 @@ void readAndDisplayFromFirebase() {
 
   // Firebase mode
   HTTPClient http;
-  String url = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device.json";
+  String url = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device/sahil.json";
 
   http.begin(url);
   int httpCode = http.GET();
