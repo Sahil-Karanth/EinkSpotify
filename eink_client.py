@@ -12,9 +12,6 @@ UPDATE_INTERVAL = 1 # ! SMALL FOR TESTING
 MAX_TEXT_LENGTH_ALLOWED = 15
 NUM_DISPLAY_ENTRIES = 5
 
-FIREBASE_URL = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device.json"
-
-
 def authenticate_and_get_token():
     """Authenticate with Firebase and get an ID token"""
     api_key = os.getenv("FIREBASE_API_KEY")
@@ -32,6 +29,7 @@ def authenticate_and_get_token():
     response = requests.post(auth_url, json=auth_data)
     
     if response.status_code == 200:
+        print("FIREBASE AUTH SUCCEEDED")
         return response.json()["idToken"]
     else:
         print(f"Authentication failed: {response.text}")
@@ -45,7 +43,7 @@ def send_message_to_display(message, user_id):
         return
 
     # Send to Firebase with auth token
-    firebase_url_with_auth = f"https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/{user_id}.json?auth={token}"
+    firebase_url_with_auth = f"https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device/{user_id}.json?auth={token}"
     
     data = {"message": message}
     
