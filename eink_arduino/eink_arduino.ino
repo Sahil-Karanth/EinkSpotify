@@ -13,7 +13,7 @@ Preferences preferences;
 
 const char* mdns_hostname = "sahil-epaper";
 const char* config_ap_ssid = "EPaper-Config";
-const char* config_ap_password = "configure123";
+const char* config_ap_password = "configure123"; // not a secret XD
 
 #define Max_CharNum_PerLine 37
 #define CONFIG_KEY 2  // button for entering config mode
