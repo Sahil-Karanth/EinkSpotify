@@ -142,7 +142,7 @@ void setup() {
       Serial.println("HTTP server started.");
 
     } else {
-      // // Firebase mode
+      // Firebase mode
       readAndDisplayFromFirebase();
     }
 

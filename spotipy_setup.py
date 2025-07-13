@@ -10,13 +10,13 @@ load_dotenv()
 # globals
 # -----------------------------------------------------------------------------#
 
-DB_PATH = 'artists.db'
+DB_PATH = "artists.db"
+USER_IDS = ["sahil", "nanna"]
 
 CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# ARTIST_JSON_PATH = os.path.join(BASE_DIR, "selected_artists.json")
 
 auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 sp = spotipy.Spotify(auth_manager=auth_manager)
@@ -25,11 +25,16 @@ sp = spotipy.Spotify(auth_manager=auth_manager)
 # spotify helper functions
 # -----------------------------------------------------------------------------#
 
-def load_selected_artists():
+def load_selected_artists(db_path, user_id):
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(db_path) as conn:
         c = conn.cursor()
-        c.execute("SELECT name, id, image_url, most_recent_song, last_updated FROM selected_artists")
+        c.execute("""
+            SELECT name, artist_id, image_url, most_recent_song, last_updated
+            FROM selected_artists
+            WHERE user_id = ?
+        """, (user_id,))
+
         db_tuples = c.fetchall()
 
         artists = []
@@ -45,6 +50,7 @@ def load_selected_artists():
             }
             
             artists.append(artist)
+            print(f"RECEIVED: {artist['name']}")
 
         return artists
 
@@ -75,8 +81,5 @@ def get_most_recent_song(artist_id):
         tracks = sp.album_tracks(album_id)
         if tracks['items']:
             latest_track = tracks['items'][0]
-            # print(f"\nMost Recent Song: {latest_track['name']}")
-            # print(f"Spotify URL: {latest_track['external_urls']['spotify']}")
             return latest_track['name']
     
-    # print("No tracks found in latest releases.")

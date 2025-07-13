@@ -1,21 +1,22 @@
 from flask import Flask, render_template, request, redirect, url_for
 from datetime import datetime
+import sqlite3
+import sys
 
 from spotipy_setup import *
-
 load_dotenv()
 
-# -----------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------
 # globals
-# -----------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------
 
 app = Flask(__name__)
+user_id = None
+selected_artists = []
 
-selected_artists = load_selected_artists()
-
-# -----------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------
 # flask routes
-# -----------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------
 
 @app.route('/', methods=['GET'])
 def home():
@@ -28,7 +29,7 @@ def select_artists():
     if request.method == 'POST':
         artist_name = request.form.get('artistName')
         artist_data = get_possible_artists(artist_name)
-    
+
     return render_template("artist_input.html", artist_data=artist_data)
 
 @app.route('/add_artist', methods=['POST'])
@@ -45,27 +46,27 @@ def remove_artist(artist_id):
     selected_artists = [artist for artist in selected_artists if artist['id'] != artist_id]
     return redirect(url_for('home'))
 
-
 @app.route('/save_artist_change')
 def save_artist_change():
+    global user_id
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # Delete everything
-    cursor.execute("DELETE FROM selected_artists")
+    # Delete only this user's artists
+    cursor.execute("DELETE FROM selected_artists WHERE user_id = ?", (user_id,))
 
-    # Re-insert all artists from the list
+    # Re-insert all artists for this user
     for artist in selected_artists:
-
         most_recent_song = get_most_recent_song(artist['id'])
 
         cursor.execute(
             """
-            INSERT INTO selected_artists (id, name, most_recent_song, last_updated)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO selected_artists (artist_id, user_id, name, most_recent_song, last_updated)
+            VALUES (?, ?, ?, ?, ?)
             """,
             (
                 artist['id'],
+                user_id,
                 artist['name'],
                 most_recent_song,
                 artist.get('last_updated', datetime.now().isoformat())
@@ -77,15 +78,25 @@ def save_artist_change():
 
     return "<h3>Artist selection updated!</h3>"
 
-# -----------------------------------------------------------------------------#
+# ------------------------------------------------------------------------------
 # main
-# -----------------------------------------------------------------------------#
+# ------------------------------------------------------------------------------
 
 if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("Incorrect usage must provide a user_id (sahil/nanna): python app.py <user_id>")
+        sys.exit(1)
+
+    if sys.argv[1] not in USER_IDS:
+        print("invalid user_id - must be 'sahil' or 'nanna'")
+        sys.exit(1)
+
+    user_id = sys.argv[1]
+    selected_artists = load_selected_artists(DB_PATH, user_id)
 
     while True:
         inp = input("Enter command (launch/quit): ").strip().lower()
-        
+
         if inp == "launch":
             app.run(port=5000)
         elif inp == "quit":

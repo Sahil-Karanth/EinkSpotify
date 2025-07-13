@@ -14,9 +14,6 @@ NUM_DISPLAY_ENTRIES = 5
 
 FIREBASE_URL = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device.json"
 
-# "http://epaper.local/" (mDNS arduino side)
-ESP32_HOSTNAME = "epaper.local" 
-URL = f"http://{ESP32_HOSTNAME}/update"
 
 def authenticate_and_get_token():
     """Authenticate with Firebase and get an ID token"""
@@ -40,7 +37,7 @@ def authenticate_and_get_token():
         print(f"Authentication failed: {response.text}")
         return None
 
-def send_message_to_display(message):
+def send_message_to_display(message, user_id):
     # Get authenticated token
     token = authenticate_and_get_token()
     if not token:
@@ -48,7 +45,7 @@ def send_message_to_display(message):
         return
 
     # Send to Firebase with auth token
-    firebase_url_with_auth = f"{FIREBASE_URL}?auth={token}"
+    firebase_url_with_auth = f"https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/{user_id}.json?auth={token}"
     
     data = {"message": message}
     
@@ -64,11 +61,14 @@ def send_message_to_display(message):
         print(f"Failed to write to Firebase: {response.status_code}")
         print(response.text)
 
-    # ESP32 communication (unchanged)
-    print(f"Attempting to send '{message}' to {ESP32_HOSTNAME}...")
+    esp32_hostname = f"{user_id}-epaper.local"
+    url = f"http://{esp32_hostname}/update"
+
+    # ESP32 communication
+    print(f"Attempting to send '{message}' to {esp32_hostname}...")
     try:
         # Set a timeout to avoid waiting forever if the device isn't found
-        response = requests.get(URL, params={'message': message}, timeout=10)
+        response = requests.get(url, params={'message': message}, timeout=10)
         
         # Check the HTTP response status code
         if response.status_code == 200:
@@ -77,7 +77,7 @@ def send_message_to_display(message):
         else:
             print(f"ERROR: Device responded with status code {response.status_code}")
     except requests.exceptions.RequestException as e:
-        print(f"FAILED: Could not connect to {ESP32_HOSTNAME}.")
+        print(f"FAILED: Could not connect to {esp32_hostname}.")
         print(f"--> Error details: {e}")
 
 
@@ -111,8 +111,8 @@ def format_display_message(lines_to_display, max_song_length):
         message += f"{song:<{max_song_length}} | {artist}\n"
     return message
 
-def check_for_new_releases(lines_to_display):
-    for artist in load_selected_artists():
+def check_for_new_releases(lines_to_display, db_path, user_id):
+    for artist in load_selected_artists(db_path, user_id):
         current_song = get_most_recent_song(artist["id"])
         
         if current_song != artist["most_recent_song"]:
@@ -120,29 +120,44 @@ def check_for_new_releases(lines_to_display):
             new_line = create_line_data(artist, current_song)
             lines_to_display.appendleft(new_line)
 
-if __name__ == "__main__":
-    # Initial setup
-    lines_to_display = deque(maxlen=NUM_DISPLAY_ENTRIES)
-
+def initial_message_create(lines_to_display, db_path, user_id):
     # Load initial data
-    for artist in load_selected_artists():
+    for artist in load_selected_artists(db_path, user_id):
         song_name = get_most_recent_song(artist["id"])
         line_data = create_line_data(artist, song_name)
         lines_to_display.append(line_data)
 
         if len(lines_to_display) == NUM_DISPLAY_ENTRIES:
             break
+
+class UserLines:
+    def __init__(self, user_id):
+        self.user_id = user_id
+        self.queue = deque(maxlen=NUM_DISPLAY_ENTRIES)
+
+
+
+if __name__ == "__main__":
+    # Initial setup
+
+    # user queues
+    lines_arr = [UserLines(USER_IDS[0]), UserLines(USER_IDS[1])]
+
+    for lines in lines_arr:
+        initial_message_create(lines.queue, DB_PATH, lines.user_id)
+
     
     # Main loop
     while True:
         time.sleep(UPDATE_INTERVAL)
         
         # Check for updates
-        check_for_new_releases(lines_to_display)
-        
-        # Calculate formatting and display
-        max_song_length = calculate_max_song_length(lines_to_display)
-        message = format_display_message(lines_to_display, max_song_length)
-        send_message_to_display(message)
+        for lines in lines_arr:
+            check_for_new_releases(lines.queue, DB_PATH, lines.user_id)
+            
+            # Calculate formatting and display
+            max_song_length = calculate_max_song_length(lines.queue)
+            message = format_display_message(lines.queue, max_song_length)
+            send_message_to_display(message, lines.user_id)
 
         break # ! TESTING

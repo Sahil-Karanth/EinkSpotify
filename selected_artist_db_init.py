@@ -6,11 +6,13 @@ def init_db():
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS selected_artists (
-            id TEXT PRIMARY KEY,
+            artist_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
             name TEXT NOT NULL,
             image_url TEXT,
             most_recent_song TEXT,
-            last_updated TEXT
+            last_updated TEXT,
+            PRIMARY KEY (artist_id, user_id)
         )
     ''')
 
