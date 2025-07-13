@@ -8,9 +8,11 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
+#define HOME_KEY 2 // menu button
+
 WiFiMulti wifiMulti;
 
-const char* mdns_hostname = "sahil-epaper.local";
+const char* mdns_hostname = "sahil-epaper"; 
 
 #define Max_CharNum_PerLine 37
 extern uint8_t ImageBW[ALLSCREEN_BYTES];
@@ -110,14 +112,17 @@ void setup() {
   pinMode(7, OUTPUT);
   digitalWrite(7, HIGH);
 
-  EPD_Init();                     // Initialize the EPD e-paper display
-  EPD_Clear(0, 0, 296, 128, WHITE); // Clear the area
-  EPD_ALL_Fill(WHITE);           // Fill screen with white
-  EPD_Update();                  // Apply clearing
-  EPD_Clear_R26H();              // Clear buffer
+  EPD_Init();
+  EPD_Clear(0, 0, 296, 128, WHITE);
+  EPD_ALL_Fill(WHITE);
+  EPD_Update();
+  EPD_Clear_R26H();
 
   Long_Text_Display(0, 0, startup_message, 24, BLACK);
+
+  EPD_DisplayImage(ImageBW);
   EPD_FastUpdate();
+  // EPD_Sleep();
 
   wifiMulti.addAP(HOME_WIFI_SSID, HOME_WIFI_PWD);
   wifiMulti.addAP("FlatWiFi", "flatpass");
@@ -126,7 +131,7 @@ void setup() {
     String ssid = WiFi.SSID();
     Serial.println("Connected to: " + ssid);
 
-    if (ssid != HOME_WIFI_SSID) {
+    if (ssid == HOME_WIFI_SSID) {
       // mDNS mode
       if (!MDNS.begin(mdns_hostname)) {
         Serial.println("Error setting up mDNS responder!");
@@ -155,6 +160,15 @@ void setup() {
 void loop() {
   // Check for incoming web server requests (mDNS pathway)
   server.handleClient();
+
+  if (digitalRead(HOME_KEY) == 0)
+  {
+    delay(100); // Anti shake delay
+    if (digitalRead(HOME_KEY) == 1)
+    {
+      Serial.println("HOME_KEY"); 
+    }
+  }
 }
 
 // function provided by offical demo code

@@ -61,6 +61,7 @@ def send_message_to_display(message, user_id):
 
     esp32_hostname = f"{user_id}-epaper.local"
     url = f"http://{esp32_hostname}/update"
+    print(url)
 
     # ESP32 communication
     print(f"Attempting to send '{message}' to {esp32_hostname}...")
