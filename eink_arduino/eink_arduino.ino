@@ -555,7 +555,7 @@ void setup() {
         EPD_Sleep();
 
         // Setup NTP first
-        configTime(0, 0, "pool.ntp.org");
+        configTzTime("GMT0BST,M3.5.0/1,M10.5.0/2", "pool.ntp.org");
 
         struct tm timeinfo;
         getCurrentTime(&timeinfo);

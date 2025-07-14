@@ -36,14 +36,13 @@ def select_artists():
 def add_artist():
     name = request.form.get('name')
     artist_id = request.form.get('id')
-    popularity = request.form.get('popularity')
-    selected_artists.append({'name': name, 'id': artist_id, 'popularity': popularity})
+    selected_artists.append({'artist_name': name, 'artist_id': artist_id})
     return redirect(url_for('home'))
 
 @app.route('/remove_artist/<artist_id>', methods=['POST'])
 def remove_artist(artist_id):
     global selected_artists
-    selected_artists = [artist for artist in selected_artists if artist['id'] != artist_id]
+    selected_artists = [artist for artist in selected_artists if artist['artist_id'] != artist_id]
     return redirect(url_for('home'))
 
 @app.route('/save_artist_change')
@@ -57,19 +56,15 @@ def save_artist_change():
 
     # Re-insert all artists for this user
     for artist in selected_artists:
-        most_recent_song = get_most_recent_song(artist['id'])
-
         cursor.execute(
             """
-            INSERT INTO selected_artists (artist_id, user_id, name, most_recent_song, last_updated)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO selected_artists (artist_id, user_id, artist_name)
+            VALUES (?, ?, ?)
             """,
             (
-                artist['id'],
+                artist['artist_id'],
                 user_id,
-                artist['name'],
-                most_recent_song,
-                artist.get('last_updated', datetime.now().isoformat())
+                artist['artist_name'],
             )
         )
 
@@ -92,7 +87,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     user_id = sys.argv[1]
-    selected_artists = load_selected_artists(DB_PATH, user_id)
+    selected_artists = load_selected_artists(user_id)
 
     while True:
         inp = input("Enter command (launch/quit): ").strip().lower()

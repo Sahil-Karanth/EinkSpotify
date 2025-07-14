@@ -8,11 +8,15 @@ def init_db():
         CREATE TABLE IF NOT EXISTS selected_artists (
             artist_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            image_url TEXT,
-            most_recent_song TEXT,
-            last_updated TEXT,
+            artist_name TEXT NOT NULL,
             PRIMARY KEY (artist_id, user_id)
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
         )
     ''')
 

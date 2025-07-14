@@ -5,6 +5,7 @@ from spotipy_setup import *
 from dotenv import load_dotenv
 import json
 import os
+import schedule
 
 load_dotenv()
 
@@ -36,6 +37,10 @@ def authenticate_and_get_token():
         return None
 
 def send_message_to_display(message, user_id):
+
+    if len(message) == 0:
+        message = "No artists selected!"
+    
     # Get authenticated token
     token = authenticate_and_get_token()
     if not token:
@@ -97,10 +102,14 @@ def create_line_data(artist, song_name):
     }
 
 def calculate_max_song_length(lines_to_display):
-    return max(
-        min(line["original_song_length"], MAX_TEXT_LENGTH_ALLOWED)
-        for line in lines_to_display
-    )
+
+    if len(lines_to_display) == 0:
+        return 0
+    else:
+        return max(
+            min(line["original_song_length"], MAX_TEXT_LENGTH_ALLOWED)
+            for line in lines_to_display
+        )
 
 def format_display_message(lines_to_display, max_song_length):
     message = ""
@@ -110,19 +119,20 @@ def format_display_message(lines_to_display, max_song_length):
         message += f"{song:<{max_song_length}} | {artist}\n"
     return message
 
-def check_for_new_releases(lines_to_display, db_path, user_id):
-    for artist in load_selected_artists(db_path, user_id):
-        current_song = get_most_recent_song(artist["id"])
+def check_for_new_releases(lines_to_display, user_id):
+    for artist in load_selected_artists(user_id):
+        current_song, release_date = get_most_recent_song(artist["artist_id"])
         
-        if current_song != artist["most_recent_song"]:
-            # New release detected - add to top of display
+        # check if it's new
+        if release_date > get_last_checked_date():
             new_line = create_line_data(artist, current_song)
             lines_to_display.appendleft(new_line)
 
-def initial_message_create(lines_to_display, db_path, user_id):
+
+def initial_message_create(lines_to_display, user_id):
     # Load initial data
-    for artist in load_selected_artists(db_path, user_id):
-        song_name = get_most_recent_song(artist["id"])
+    for artist in load_selected_artists(user_id):
+        song_name, _ = get_most_recent_song(artist["id"])
         line_data = create_line_data(artist, song_name)
         lines_to_display.append(line_data)
 
@@ -135,28 +145,31 @@ class UserLines:
         self.queue = deque(maxlen=NUM_DISPLAY_ENTRIES)
 
 
+def main_cron_job(lines_arr):
+    print("CRON JOB TIME!")
+    # Check for updates
+    for lines in lines_arr:
+        # modify the queue with new releases
+        check_for_new_releases(lines.queue, lines.user_id)
+        
+        # Calculate formatting and display
+        max_song_length = calculate_max_song_length(lines.queue)
+        message = format_display_message(lines.queue, max_song_length)
+        send_message_to_display(message, lines.user_id)
+
+    update_last_checked_date()
 
 if __name__ == "__main__":
-    # Initial setup
 
-    # user queues
+    print("eink client program start")
+
     lines_arr = [UserLines(USER_IDS[0]), UserLines(USER_IDS[1])]
 
-    for lines in lines_arr:
-        initial_message_create(lines.queue, DB_PATH, lines.user_id)
+    schedule.every().day.at("19:14").do(main_cron_job, lines_arr=lines_arr)
+    # schedule.every(10).seconds.do(main_cron_job, lines_arr=lines_arr)
 
-    
-    # Main loop
+
     while True:
-        time.sleep(UPDATE_INTERVAL)
-        
-        # Check for updates
-        for lines in lines_arr:
-            check_for_new_releases(lines.queue, DB_PATH, lines.user_id)
-            
-            # Calculate formatting and display
-            max_song_length = calculate_max_song_length(lines.queue)
-            message = format_display_message(lines.queue, max_song_length)
-            send_message_to_display(message, lines.user_id)
+        schedule.run_pending()
+        time.sleep(1)
 
-        break # ! TESTING

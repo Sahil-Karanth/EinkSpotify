@@ -13,7 +13,7 @@
             {% for artist in selected_artists %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     <div>
-                        <strong>{{ artist.name }}</strong> <small class="text-muted">({{ artist.id }})</small>
+                        <strong>{{ artist.artist_name }}</strong> <small class="text-muted">({{ artist.artist_id }})</small>
                     </div>
                     <form action="{{ url_for('remove_artist', artist_id=artist.id) }}" method="POST" style="margin: 0;">
                         <button class="btn btn-sm btn-danger">Remove</button>
