@@ -577,29 +577,12 @@ void setup() {
                 Serial.println("Error setting up mDNS responder!");
                 while(1) { delay(1000); }
             }
-            
-            // // Display ready message
-            // EPD_Init();
-            // EPD_Clear(0, 0, 296, 128, WHITE);
-            // EPD_ALL_Fill(WHITE);
-            // EPD_Update();
-            // EPD_Clear_R26H();
-            
-            // preferences.begin("display-cache", false);
-            // String old_display_value = preferences.getString("display_cache", "Ready!\nhttp://epaper.local");
-            // preferences.end();
-
-            // Long_Text_Display(0, 0, old_display_value.c_str(), 24, BLACK);
-
-            // EPD_DisplayImage(ImageBW);
-            // EPD_FastUpdate();
-            // EPD_Sleep();
 
             // start the mDNS server
             server.on("/update", handleUpdate);
             server.begin();
             serverStartTime = millis();
-            Serial.println("HTTP server started at http://epaper.local");
+            Serial.println("HTTP mDNS server started");
             
             
         } else {

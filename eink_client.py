@@ -168,7 +168,6 @@ if __name__ == "__main__":
     schedule.every().day.at("19:14").do(main_cron_job, lines_arr=lines_arr)
     # schedule.every(10).seconds.do(main_cron_job, lines_arr=lines_arr)
 
-
     while True:
         schedule.run_pending()
         time.sleep(1)
