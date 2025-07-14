@@ -381,17 +381,32 @@ void setup() {
     Serial.begin(9600);
     delay(100);
 
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)CONFIG_KEY, 0);
+
     // Setup pins
     pinMode(7, OUTPUT);
     digitalWrite(7, HIGH);
-    // pinMode(HOME_KEY, INPUT_PULLUP);
     pinMode(CONFIG_KEY, INPUT_PULLUP);
 
     // Check if config button is pressed during startup
-    if (digitalRead(CONFIG_KEY) == LOW) {
-        delay(100);
+    // if (digitalRead(CONFIG_KEY) == LOW) {
+    //     delay(100);
+    //     if (digitalRead(CONFIG_KEY) == LOW) {
+    //         enterConfigMode();
+    //     }
+    // }
+
+    // Check if wakeup was caused by button press
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
+        Serial.println("Woke up from button press!");
+
+        // Give the user a chance to keep holding the button to enter config
+        delay(500);  // debounce and allow user time to keep holding
         if (digitalRead(CONFIG_KEY) == LOW) {
+            Serial.println("Button still held after wake -> Entering config mode");
             enterConfigMode();
+        } else {
+            Serial.println("Button released quickly -> normal mode");
         }
     }
 
@@ -479,19 +494,13 @@ void setup() {
         delay(2000);
         enterConfigMode();
     }
+
+    Serial.println("ENTERING DEEP SLEEP");
+    esp_deep_sleep_start();
 }
 
 void loop() {
-    server.handleClient();
-    
-    // Check for config button press
-    if (digitalRead(CONFIG_KEY) == LOW) {
-        delay(100);
-        if (digitalRead(CONFIG_KEY) == LOW) {
-            Serial.println("Config button pressed");
-            enterConfigMode();
-        }
-    }
+    // server.handleClient();
     
 }
 
