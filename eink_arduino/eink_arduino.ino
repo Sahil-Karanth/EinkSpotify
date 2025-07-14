@@ -11,9 +11,23 @@
 WiFiMulti wifiMulti;
 Preferences preferences;
 
+//======================================================================
+// Firmware Specifics
+//======================================================================
 const char* mdns_hostname = "sahil-epaper";
+const String FIREBASE_URL = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device/sahil.json";
+
+
+//======================================================================
+// Constants and Declarations
+//======================================================================
 const char* config_ap_ssid = "EPaper-Config";
 const char* config_ap_password = "configure123"; // not a secret XD
+
+int WAKE_UP_HOUR = 18; // wakeup at 6pm the next day
+
+unsigned long serverStartTime;
+const unsigned long runDuration = 3600UL * 1000UL; // 1 hour in milliseconds
 
 #define Max_CharNum_PerLine 37
 #define CONFIG_KEY 2  // button for entering config mode
@@ -256,6 +270,13 @@ void handleExitConfig() {
 // Normal Operation Functions
 //======================================================================
 
+void cacheResponse(String received_message) {
+    preferences.begin("display-cache", false);
+    preferences.putString("display_cache", received_message);
+    preferences.end();
+}
+
+
 void handleUpdate() {
     if (server.hasArg("message")) {
         String received_message = server.arg("message");
@@ -276,9 +297,7 @@ void handleUpdate() {
         EPD_Sleep();
 
         // cache the response
-        preferences.begin("display-cache", false);
-        preferences.putString("display_cache", received_message);
-        preferences.end();
+        cacheResponse(received_message);
         
         server.send(200, "text/plain", "OK. Message displayed.");
     } else {
@@ -286,11 +305,29 @@ void handleUpdate() {
     }
 }
 
-void readAndDisplayFromFirebase() {
-    HTTPClient http;
-    String url = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device/sahil.json";
+void getCurrentTime(struct tm* time_struct) {
+    if (!getLocalTime(time_struct)) {
+        Serial.println("Failed to get time from NTP!");
+        scheduleWakeupAtHour(WAKE_UP_HOUR);
+        esp_deep_sleep_start();  // fail-safe: sleep if no time received
+    }
+}
 
-    http.begin(url);
+void readAndDisplayFromFirebase() {
+
+    struct tm timeinfo;
+    getCurrentTime(&timeinfo);
+
+    int currentHour = timeinfo.tm_hour;
+    if (currentHour < 18 || currentHour >= 19) {
+        Serial.printf("Outside 6-7PM window (hour=%d). Going to deep sleep.\n", currentHour);
+        scheduleWakeupAtHour(WAKE_UP_HOUR);
+        esp_deep_sleep_start();
+    }
+
+
+    HTTPClient http;
+    http.begin(FIREBASE_URL);
     int httpCode = http.GET();
 
     if (httpCode == 200) {
@@ -318,6 +355,10 @@ void readAndDisplayFromFirebase() {
             Long_Text_Display(0, 0, message.c_str(), 24, BLACK);
             EPD_DisplayImage(ImageBW);
             EPD_FastUpdate();
+
+            // cache the response
+            cacheResponse(message);
+
         }
     } else {
         Serial.printf("Firebase GET failed: %s\n", http.errorToString(httpCode).c_str());
@@ -332,9 +373,32 @@ void readAndDisplayFromFirebase() {
     esp_deep_sleep_start();
 }
 
-//======================================================================
-// Main Functions
-//======================================================================
+void scheduleWakeupAtHour(float targetHour) {
+    // Convert fractional hour (e.g. 18.2) to seconds past midnight
+    int targetSec = (int)(targetHour * 3600);  // 18.2 -> 65520 seconds (18:12)
+
+    // Get current time
+    struct tm timeinfo;
+    getCurrentTime(&timeinfo);
+
+    int nowSec = timeinfo.tm_hour * 3600 + timeinfo.tm_min * 60 + timeinfo.tm_sec;
+
+    int secondsUntilWake;
+    if (nowSec < targetSec) {
+        secondsUntilWake = targetSec - nowSec;
+    } else {
+        // target is tomorrow
+        secondsUntilWake = 86400 - nowSec + targetSec;
+    }
+
+    Serial.printf("Current time: %02d:%02d:%02d\n", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    Serial.printf("Will wake up in %d seconds (~%.2f minutes)\n", secondsUntilWake, secondsUntilWake / 60.0);
+
+    // Schedule timer-based deep sleep
+    esp_sleep_enable_timer_wakeup((uint64_t)secondsUntilWake * 1000000ULL);
+    esp_deep_sleep_start();
+}
+
 
 void enterConfigMode() {
     Serial.println("Entering configuration mode...");
@@ -377,134 +441,10 @@ void enterConfigMode() {
     }
 }
 
-void setup() {
-    Serial.begin(9600);
-    delay(100);
+//======================================================================
+// Functions provided by eleCrow demo code
+//======================================================================
 
-    esp_sleep_enable_ext0_wakeup((gpio_num_t)CONFIG_KEY, 0);
-
-    // Setup pins
-    pinMode(7, OUTPUT);
-    digitalWrite(7, HIGH);
-    pinMode(CONFIG_KEY, INPUT_PULLUP);
-
-    // Check if config button is pressed during startup
-    // if (digitalRead(CONFIG_KEY) == LOW) {
-    //     delay(100);
-    //     if (digitalRead(CONFIG_KEY) == LOW) {
-    //         enterConfigMode();
-    //     }
-    // }
-
-    // Check if wakeup was caused by button press
-    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
-        Serial.println("Woke up from button press!");
-
-        // Give the user a chance to keep holding the button to enter config
-        delay(500);  // debounce and allow user time to keep holding
-        if (digitalRead(CONFIG_KEY) == LOW) {
-            Serial.println("Button still held after wake -> Entering config mode");
-            enterConfigMode();
-        } else {
-            Serial.println("Button released quickly -> normal mode");
-        }
-    }
-
-    // Load saved networks
-    loadNetworksFromStorage();
-    
-    // If no networks saved, enter config mode
-    if (savedNetworks.empty()) {
-        Serial.println("No networks configured. Entering config mode...");
-        enterConfigMode();
-    }
-    
-    // Add networks to WiFiMulti
-    addNetworkToMulti();
-    
-    // Initialize display
-    EPD_Init();
-    EPD_Clear(0, 0, 296, 128, WHITE);
-    EPD_ALL_Fill(WHITE);
-    EPD_Update();
-    EPD_Clear_R26H();
-    
-    Long_Text_Display(0, 0, "Connecting to WiFi...", 24, BLACK);
-    EPD_DisplayImage(ImageBW);
-    EPD_FastUpdate();
-    EPD_Sleep();
-    
-    // Try to connect
-    if (wifiMulti.run() == WL_CONNECTED) {
-        String connectedSSID = WiFi.SSID();
-        Serial.println("Connected to: " + connectedSSID);
-        
-        // Check if this is the home network
-        bool isHomeNetwork = (connectedSSID == homeNetworkSSID);
-        
-        if (isHomeNetwork) {
-            Serial.println("Home network detected - starting mDNS mode");
-            
-            if (!MDNS.begin(mdns_hostname)) {
-                Serial.println("Error setting up mDNS responder!");
-                while(1) { delay(1000); }
-            }
-            
-            server.on("/update", handleUpdate);
-            server.begin();
-            Serial.println("HTTP server started at http://epaper.local");
-            
-            // Display ready message
-            EPD_Init();
-            EPD_Clear(0, 0, 296, 128, WHITE);
-            EPD_ALL_Fill(WHITE);
-            EPD_Update();
-            EPD_Clear_R26H();
-            
-            preferences.begin("display-cache", false);
-            String old_display_value = preferences.getString("display_cache", "Ready!\nhttp://epaper.local");
-            preferences.end();
-
-            Long_Text_Display(0, 0, old_display_value.c_str(), 24, BLACK);
-
-            EPD_DisplayImage(ImageBW);
-            EPD_FastUpdate();
-            EPD_Sleep();
-            
-        } else {
-            Serial.println("Non-home network detected - starting Firebase mode");
-            readAndDisplayFromFirebase();
-        }
-        
-    } else {
-        Serial.println("WiFi connection failed");
-        
-        // Display error and enter config mode
-        EPD_Init();
-        EPD_Clear(0, 0, 296, 128, WHITE);
-        EPD_ALL_Fill(WHITE);
-        EPD_Update();
-        EPD_Clear_R26H();
-        
-        Long_Text_Display(0, 0, "WiFi Failed\nEntering config mode...", 24, BLACK);
-        EPD_DisplayImage(ImageBW);
-        EPD_FastUpdate();
-        EPD_Sleep();
-        
-        delay(2000);
-        enterConfigMode();
-    }
-
-    Serial.println("ENTERING DEEP SLEEP");
-    esp_deep_sleep_start();
-}
-
-void loop() {
-    // server.handleClient();
-    
-}
-
-// Rest of your existing functions...
 void Long_Text_Display(int x, int y, const char* content, int fontSize, int color) {
     char line[Max_CharNum_PerLine + 1];
     int lineLength = 0;
@@ -536,4 +476,166 @@ void Long_Text_Display(int x, int y, const char* content, int fontSize, int colo
         line[lineLength] = '\0';
         EPD_ShowString(x, y, line, color, fontSize);
     }
+}
+
+//======================================================================
+// Main Functions
+//======================================================================
+
+void setup() {
+    Serial.begin(9600);
+    delay(100);
+
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)CONFIG_KEY, 0);
+
+    // Setup pins
+    pinMode(7, OUTPUT);
+    digitalWrite(7, HIGH);
+    pinMode(CONFIG_KEY, INPUT_PULLUP);
+
+    // Check if wakeup was caused by button press
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
+        Serial.println("Woke up from button press!");
+
+        // Give the user a chance to keep holding the button to enter config
+        delay(500);
+        if (digitalRead(CONFIG_KEY) == LOW) {
+            Serial.println("Button still held after wake -> Entering config mode");
+            enterConfigMode();
+        } else {
+            Serial.println("Button released quickly -> normal mode");
+        }
+    }
+
+
+    // Load saved networks
+    loadNetworksFromStorage();
+    
+    // If no networks saved, enter config mode
+    if (savedNetworks.empty()) {
+        Serial.println("No networks configured. Entering config mode...");
+        enterConfigMode();
+    }
+    
+    // Add networks to WiFiMulti
+    addNetworkToMulti();
+    
+    // Initialize display
+    EPD_Init();
+    EPD_Clear(0, 0, 296, 128, WHITE);
+    EPD_ALL_Fill(WHITE);
+    EPD_Update();
+    EPD_Clear_R26H();
+    
+    Long_Text_Display(0, 0, "Connecting to WiFi...", 24, BLACK);
+    EPD_DisplayImage(ImageBW);
+    EPD_FastUpdate();
+    EPD_Sleep();
+    
+    // Try to connect
+    if (wifiMulti.run() == WL_CONNECTED) {
+        String connectedSSID = WiFi.SSID();
+        Serial.println("Connected to: " + connectedSSID);
+
+        // Display ready / cached message
+        EPD_Init();
+        EPD_Clear(0, 0, 296, 128, WHITE);
+        EPD_ALL_Fill(WHITE);
+        EPD_Update();
+        EPD_Clear_R26H();
+        
+        preferences.begin("display-cache", false);
+        String old_display_value = preferences.getString("display_cache", "Ready!\nhttp://epaper.local");
+        preferences.end();
+
+        Long_Text_Display(0, 0, old_display_value.c_str(), 24, BLACK);
+
+        EPD_DisplayImage(ImageBW);
+        EPD_FastUpdate();
+        EPD_Sleep();
+
+        // Setup NTP first
+        configTime(0, 0, "pool.ntp.org");
+
+        struct tm timeinfo;
+        getCurrentTime(&timeinfo);
+
+        int currentHour = timeinfo.tm_hour;
+        if (currentHour < 18 || currentHour >= 19) {
+            Serial.printf("Outside 6-7PM window (hour=%d). Going to deep sleep.\n", currentHour);
+            scheduleWakeupAtHour(WAKE_UP_HOUR);
+            esp_deep_sleep_start();
+        }
+
+        // Check if this is the home network
+        bool isHomeNetwork = (connectedSSID == homeNetworkSSID);
+        
+        if (isHomeNetwork) {
+            Serial.println("Home network detected - starting mDNS mode");
+            
+            if (!MDNS.begin(mdns_hostname)) {
+                Serial.println("Error setting up mDNS responder!");
+                while(1) { delay(1000); }
+            }
+            
+            // // Display ready message
+            // EPD_Init();
+            // EPD_Clear(0, 0, 296, 128, WHITE);
+            // EPD_ALL_Fill(WHITE);
+            // EPD_Update();
+            // EPD_Clear_R26H();
+            
+            // preferences.begin("display-cache", false);
+            // String old_display_value = preferences.getString("display_cache", "Ready!\nhttp://epaper.local");
+            // preferences.end();
+
+            // Long_Text_Display(0, 0, old_display_value.c_str(), 24, BLACK);
+
+            // EPD_DisplayImage(ImageBW);
+            // EPD_FastUpdate();
+            // EPD_Sleep();
+
+            // start the mDNS server
+            server.on("/update", handleUpdate);
+            server.begin();
+            serverStartTime = millis();
+            Serial.println("HTTP server started at http://epaper.local");
+            
+            
+        } else {
+            Serial.println("Non-home network detected - starting Firebase mode");
+            readAndDisplayFromFirebase();
+        }
+        
+    } else {
+        Serial.println("WiFi connection failed");
+        
+        // Display error and enter config mode
+        EPD_Init();
+        EPD_Clear(0, 0, 296, 128, WHITE);
+        EPD_ALL_Fill(WHITE);
+        EPD_Update();
+        EPD_Clear_R26H();
+        
+        Long_Text_Display(0, 0, "WiFi Failed\nEntering config mode...", 24, BLACK);
+        EPD_DisplayImage(ImageBW);
+        EPD_FastUpdate();
+        EPD_Sleep();
+        
+        delay(2000);
+        enterConfigMode();
+    }
+
+    Serial.println("ENTERING DEEP SLEEP");
+    esp_deep_sleep_start();
+}
+
+void loop() {
+  if (millis() - serverStartTime < runDuration) {
+    server.handleClient();
+    delay(1);
+  } else {
+    // After 1 hour, go to deep sleep
+    esp_deep_sleep_start();
+  }
 }
