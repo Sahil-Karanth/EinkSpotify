@@ -172,7 +172,7 @@ if __name__ == "__main__":
     lines_arr = [UserLines(USER_IDS[0]), UserLines(USER_IDS[1])]
 
     # schedule.every().day.at(SEND_TIME).do(main_cron_job, lines_arr=lines_arr)
-    schedule.every(1).seconds.do(main_cron_job, lines_arr=lines_arr)
+    schedule.every(5).seconds.do(main_cron_job, lines_arr=lines_arr)
 
     while True:
         schedule.run_pending()
