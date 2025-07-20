@@ -9,9 +9,9 @@ import schedule
 
 load_dotenv()
 
-UPDATE_INTERVAL = 1 # ! SMALL FOR TESTING
 MAX_TEXT_LENGTH_ALLOWED = 15
 NUM_DISPLAY_ENTRIES = 5
+SEND_TIME = "15:15"
 
 def authenticate_and_get_token():
     """Authenticate with Firebase and get an ID token"""
@@ -84,7 +84,6 @@ def send_message_to_display(message, user_id):
         print(f"FAILED: Could not connect to {esp32_hostname}.")
         print(f"--> Error details: {e}")
 
-
 def truncate_text(text, max_length):
     if len(text) <= max_length:
         return text
@@ -128,7 +127,6 @@ def check_for_new_releases(lines_to_display, user_id):
             new_line = create_line_data(artist, current_song)
             lines_to_display.appendleft(new_line)
 
-
 def initial_message_create(lines_to_display, user_id):
     # Load initial data
     for artist in load_selected_artists(user_id):
@@ -165,7 +163,7 @@ if __name__ == "__main__":
 
     lines_arr = [UserLines(USER_IDS[0]), UserLines(USER_IDS[1])]
 
-    schedule.every().day.at("18:15").do(main_cron_job, lines_arr=lines_arr)
+    schedule.every().day.at(SEND_TIME).do(main_cron_job, lines_arr=lines_arr)
     # schedule.every(5).seconds.do(main_cron_job, lines_arr=lines_arr)
 
     while True:
