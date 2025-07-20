@@ -12,6 +12,7 @@ load_dotenv()
 
 MAX_TEXT_LENGTH_ALLOWED = 18
 NUM_DISPLAY_ENTRIES = 8
+SCREEN_CHAR_WIDTH = 37
 SEND_TIME = "15:15"
 
 def authenticate_and_get_token():
@@ -41,7 +42,7 @@ def send_message_to_display(message, user_id):
 
     if len(message) == 0:
         message = "No artists selected!"
-    
+
     # Get authenticated token
     token = authenticate_and_get_token()
     if not token:
@@ -121,7 +122,8 @@ def format_display_message(lines_to_display, max_song_length):
     for line_data in lines_to_display:
         song = line_data["song"]
         artist = line_data["artist"]
-        message += f"{song:<{max_song_length}} | {artist}\n"
+        message += truncate_text(f"{song:<{max_song_length}} | {artist}", SCREEN_CHAR_WIDTH)
+        message += "\n"
     return message
 
 def check_for_new_releases(lines_to_display, user_id):
@@ -170,7 +172,7 @@ if __name__ == "__main__":
     lines_arr = [UserLines(USER_IDS[0]), UserLines(USER_IDS[1])]
 
     # schedule.every().day.at(SEND_TIME).do(main_cron_job, lines_arr=lines_arr)
-    schedule.every(5).seconds.do(main_cron_job, lines_arr=lines_arr)
+    schedule.every(1).seconds.do(main_cron_job, lines_arr=lines_arr)
 
     while True:
         schedule.run_pending()

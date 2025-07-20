@@ -11,7 +11,6 @@ hangul_trans = Transliter(academic)
 jp_converter = kakasi()
 
 
-
 def strip_accents(text):
     return ''.join(
         c for c in unicodedata.normalize('NFKD', text)
