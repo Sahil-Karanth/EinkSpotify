@@ -93,7 +93,7 @@ def truncate_text(text, max_length):
 def create_line_data(artist, song_name):
     """Create a line data dict with properly formatted song and artist"""
     displayed_song_name = truncate_text(song_name, MAX_TEXT_LENGTH_ALLOWED)
-    truncated_artist = truncate_text(artist["name"], MAX_TEXT_LENGTH_ALLOWED)
+    truncated_artist = truncate_text(artist["artist_name"], MAX_TEXT_LENGTH_ALLOWED)
     
     return {
         "song": displayed_song_name,
@@ -124,7 +124,7 @@ def check_for_new_releases(lines_to_display, user_id):
         current_song, release_date = get_most_recent_song(artist["artist_id"])
         
         # check if it's new
-        if release_date > get_last_checked_date():
+        if release_date < get_last_checked_date():
             new_line = create_line_data(artist, current_song)
             lines_to_display.appendleft(new_line)
 
@@ -165,8 +165,8 @@ if __name__ == "__main__":
 
     lines_arr = [UserLines(USER_IDS[0]), UserLines(USER_IDS[1])]
 
-    schedule.every().day.at("19:14").do(main_cron_job, lines_arr=lines_arr)
-    # schedule.every(10).seconds.do(main_cron_job, lines_arr=lines_arr)
+    schedule.every().day.at("18:15").do(main_cron_job, lines_arr=lines_arr)
+    # schedule.every(5).seconds.do(main_cron_job, lines_arr=lines_arr)
 
     while True:
         schedule.run_pending()

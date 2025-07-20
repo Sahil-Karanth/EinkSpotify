@@ -24,7 +24,7 @@ const String FIREBASE_URL = "https://eink-spotify-middleman-default-rtdb.firebas
 const char* config_ap_ssid = "EPaper-Config";
 const char* config_ap_password = "configure123"; // not a secret XD
 
-int WAKE_UP_HOUR = 18; // wakeup at 6pm the next day
+int WAKE_UP_HOUR = 15; // wakeup at 6pm
 
 unsigned long serverStartTime;
 const unsigned long runDuration = 3600UL * 1000UL; // 1 hour in milliseconds
@@ -319,8 +319,8 @@ void readAndDisplayFromFirebase() {
     getCurrentTime(&timeinfo);
 
     int currentHour = timeinfo.tm_hour;
-    if (currentHour < 18 || currentHour >= 19) {
-        Serial.printf("Outside 6-7PM window (hour=%d). Going to deep sleep.\n", currentHour);
+    if (currentHour < WAKE_UP_HOUR || currentHour >= WAKE_UP_HOUR + 1) {
+        Serial.printf("Outside wake up time window (hour=%d). Going to deep sleep.\n", currentHour);
         scheduleWakeupAtHour(WAKE_UP_HOUR);
         esp_deep_sleep_start();
     }
@@ -402,6 +402,8 @@ void scheduleWakeupAtHour(float targetHour) {
 
 void enterConfigMode() {
     Serial.println("Entering configuration mode...");
+
+    loadNetworksFromStorage();
     
     // Display config mode message
     EPD_Init();
@@ -561,7 +563,7 @@ void setup() {
         getCurrentTime(&timeinfo);
 
         int currentHour = timeinfo.tm_hour;
-        if (currentHour < 18 || currentHour >= 19) {
+        if (currentHour < WAKE_UP_HOUR || currentHour >= WAKE_UP_HOUR + 1) {
             Serial.printf("Outside 6-7PM window (hour=%d). Going to deep sleep.\n", currentHour);
             scheduleWakeupAtHour(WAKE_UP_HOUR);
             esp_deep_sleep_start();
@@ -609,8 +611,9 @@ void setup() {
         enterConfigMode();
     }
 
-    Serial.println("ENTERING DEEP SLEEP");
-    esp_deep_sleep_start();
+    // Serial.println("ENTERING DEEP SLEEP");
+    // scheduleWakeupAtHour(WAKE_UP_HOUR);
+    // esp_deep_sleep_start();
 }
 
 void loop() {
@@ -619,6 +622,7 @@ void loop() {
     delay(1);
   } else {
     // After 1 hour, go to deep sleep
+    scheduleWakeupAtHour(WAKE_UP_HOUR);
     esp_deep_sleep_start();
   }
 }

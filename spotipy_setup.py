@@ -49,6 +49,8 @@ def load_selected_artists(user_id):
             
             artists.append(artist)
 
+            print(artist['artist_name'])
+
         return artists
 
 
