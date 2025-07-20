@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for
-from datetime import datetime
 import sqlite3
 import sys
+from datetime import datetime
+
+from flask import Flask, redirect, render_template, request, url_for
 
 from spotipy_setup import *
+
 load_dotenv()
 
 # -----------------------------------------------------------------------------
@@ -18,34 +20,41 @@ selected_artists = []
 # flask routes
 # -----------------------------------------------------------------------------
 
-@app.route('/', methods=['GET'])
-def home():
-    return render_template('home.html', selected_artists=selected_artists)
 
-@app.route('/select_artists', methods=['GET', 'POST'])
+@app.route("/", methods=["GET"])
+def home():
+    return render_template("home.html", selected_artists=selected_artists)
+
+
+@app.route("/select_artists", methods=["GET", "POST"])
 def select_artists():
     artist_data = []
 
-    if request.method == 'POST':
-        artist_name = request.form.get('artistName')
+    if request.method == "POST":
+        artist_name = request.form.get("artistName")
         artist_data = get_possible_artists(artist_name)
 
     return render_template("artist_input.html", artist_data=artist_data)
 
-@app.route('/add_artist', methods=['POST'])
-def add_artist():
-    name = request.form.get('name')
-    artist_id = request.form.get('id')
-    selected_artists.append({'artist_name': name, 'artist_id': artist_id})
-    return redirect(url_for('home'))
 
-@app.route('/remove_artist/<artist_id>', methods=['POST'])
+@app.route("/add_artist", methods=["POST"])
+def add_artist():
+    name = request.form.get("name")
+    artist_id = request.form.get("id")
+    selected_artists.append({"artist_name": name, "artist_id": artist_id})
+    return redirect(url_for("home"))
+
+
+@app.route("/remove_artist/<artist_id>", methods=["POST"])
 def remove_artist(artist_id):
     global selected_artists
-    selected_artists = [artist for artist in selected_artists if artist['artist_id'] != artist_id]
-    return redirect(url_for('home'))
+    selected_artists = [
+        artist for artist in selected_artists if artist["artist_id"] != artist_id
+    ]
+    return redirect(url_for("home"))
 
-@app.route('/save_artist_change')
+
+@app.route("/save_artist_change")
 def save_artist_change():
     global user_id
     conn = sqlite3.connect(DB_PATH)
@@ -62,10 +71,10 @@ def save_artist_change():
             VALUES (?, ?, ?)
             """,
             (
-                artist['artist_id'],
+                artist["artist_id"],
                 user_id,
-                artist['artist_name'],
-            )
+                artist["artist_name"],
+            ),
         )
 
     conn.commit()
@@ -73,29 +82,23 @@ def save_artist_change():
 
     return "<h3>Artist selection updated!</h3>"
 
+
 # ------------------------------------------------------------------------------
 # main
 # ------------------------------------------------------------------------------
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Incorrect usage must provide a user_id (sahil/nanna): python app.py <user_id>")
+        print(
+            "Incorrect usage must provide a user_id (sahil/nihal): python app.py <user_id>"
+        )
         sys.exit(1)
 
     if sys.argv[1] not in USER_IDS:
-        print("invalid user_id - must be 'sahil' or 'nanna'")
+        print("invalid user_id - must be 'sahil' or 'nihal'")
         sys.exit(1)
 
     user_id = sys.argv[1]
     selected_artists = load_selected_artists(user_id)
 
-    while True:
-        inp = input("Enter command (launch/quit): ").strip().lower()
-
-        if inp == "launch":
-            app.run(port=5000)
-        elif inp == "quit":
-            print("Exiting program.")
-            break
-        else:
-            print("Unknown command. Please enter 'launch' or 'quit'.")
+    app.run(port=5000)

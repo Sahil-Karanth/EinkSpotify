@@ -14,17 +14,20 @@ Preferences preferences;
 //======================================================================
 // Firmware Specifics
 //======================================================================
-const char* mdns_hostname = "sahil-epaper";
-const String FIREBASE_URL = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device/sahil.json";
-
+const char* mdns_hostname = "nihal-epaper";
+const String FIREBASE_URL = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device/nihal.json";
 
 //======================================================================
 // Constants and Declarations
 //======================================================================
-const char* config_ap_ssid = "EPaper-Config";
+const char* config_ap_ssid = "EPaper-Config-Nihal";
 const char* config_ap_password = "configure123"; // not a secret XD
 
-int WAKE_UP_HOUR = 15; // wakeup at 6pm
+int WAKE_UP_HOUR = 17; // wakeup at 6pm
+
+int FONT_SIZE = 16;
+int LARGE_FONT_SIZE = 24;
+int CONFIG_FONT_SIZE = 16;
 
 unsigned long serverStartTime;
 const unsigned long runDuration = 3600UL * 1000UL; // 1 hour in milliseconds
@@ -290,7 +293,7 @@ void handleUpdate() {
         EPD_Update();
         EPD_Clear_R26H();
 
-        Long_Text_Display(0, 0, received_message.c_str(), 24, BLACK);
+        Long_Text_Display(0, 0, received_message.c_str(), FONT_SIZE, BLACK);
 
         EPD_DisplayImage(ImageBW);
         EPD_FastUpdate();
@@ -309,7 +312,7 @@ void getCurrentTime(struct tm* time_struct) {
     if (!getLocalTime(time_struct)) {
         Serial.println("Failed to get time from NTP!");
         scheduleWakeupAtHour(WAKE_UP_HOUR);
-        esp_deep_sleep_start();  // fail-safe: sleep if no time received
+        esp_deep_sleep_start();  // fail-safe sleep if no time received
     }
 }
 
@@ -352,7 +355,7 @@ void readAndDisplayFromFirebase() {
             EPD_Update();
             EPD_Clear_R26H();
             
-            Long_Text_Display(0, 0, message.c_str(), 24, BLACK);
+            Long_Text_Display(0, 0, message.c_str(), FONT_SIZE, BLACK);
             EPD_DisplayImage(ImageBW);
             EPD_FastUpdate();
 
@@ -369,7 +372,9 @@ void readAndDisplayFromFirebase() {
     // Sleep for 12 hours
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
-    esp_sleep_enable_timer_wakeup(43200LL * 1000000ULL);
+    // esp_sleep_enable_timer_wakeup(43200LL * 1000000ULL);
+    // esp_deep_sleep_start();
+    scheduleWakeupAtHour(WAKE_UP_HOUR);
     esp_deep_sleep_start();
 }
 
@@ -412,7 +417,7 @@ void enterConfigMode() {
     EPD_Update();
     EPD_Clear_R26H();
     
-    Long_Text_Display(0, 0, "Config Mode\nConnect to:\nEPaper-Config\nPassword: configure123\nVisit http://192.168.4.1", 16, BLACK);
+    Long_Text_Display(0, 0, "Config Mode\nConnect to:\nEPaper-Config\nPassword: configure123\nVisit http://192.168.4.1", CONFIG_FONT_SIZE, BLACK);
     EPD_DisplayImage(ImageBW);
     EPD_FastUpdate();
     EPD_Sleep();
@@ -529,7 +534,7 @@ void setup() {
     EPD_Update();
     EPD_Clear_R26H();
     
-    Long_Text_Display(0, 0, "Connecting to WiFi...", 24, BLACK);
+    Long_Text_Display(0, 0, "Connecting to WiFi...", LARGE_FONT_SIZE, BLACK);
     EPD_DisplayImage(ImageBW);
     EPD_FastUpdate();
     EPD_Sleep();
@@ -550,7 +555,7 @@ void setup() {
         String old_display_value = preferences.getString("display_cache", "Ready!\nhttp://epaper.local");
         preferences.end();
 
-        Long_Text_Display(0, 0, old_display_value.c_str(), 24, BLACK);
+        Long_Text_Display(0, 0, old_display_value.c_str(), FONT_SIZE, BLACK);
 
         EPD_DisplayImage(ImageBW);
         EPD_FastUpdate();
@@ -602,7 +607,7 @@ void setup() {
         EPD_Update();
         EPD_Clear_R26H();
         
-        Long_Text_Display(0, 0, "WiFi Failed\nEntering config mode...", 24, BLACK);
+        Long_Text_Display(0, 0, "WiFi Failed\nEntering config mode...", LARGE_FONT_SIZE, BLACK);
         EPD_DisplayImage(ImageBW);
         EPD_FastUpdate();
         EPD_Sleep();

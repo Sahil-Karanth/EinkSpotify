@@ -6,11 +6,12 @@ from dotenv import load_dotenv
 import json
 import os
 import schedule
+from lang_translation import transliterate_mixed
 
 load_dotenv()
 
-MAX_TEXT_LENGTH_ALLOWED = 15
-NUM_DISPLAY_ENTRIES = 5
+MAX_TEXT_LENGTH_ALLOWED = 18
+NUM_DISPLAY_ENTRIES = 8
 SEND_TIME = "15:15"
 
 def authenticate_and_get_token():
@@ -91,13 +92,17 @@ def truncate_text(text, max_length):
 
 def create_line_data(artist, song_name):
     """Create a line data dict with properly formatted song and artist"""
-    displayed_song_name = truncate_text(song_name, MAX_TEXT_LENGTH_ALLOWED)
-    truncated_artist = truncate_text(artist["artist_name"], MAX_TEXT_LENGTH_ALLOWED)
-    
+
+    translated_song_name = transliterate_mixed(song_name)
+    translated_artist_name = transliterate_mixed(artist["artist_name"])
+
+    displayed_song_name = truncate_text(translated_song_name, MAX_TEXT_LENGTH_ALLOWED)
+    truncated_artist = truncate_text(translated_artist_name, MAX_TEXT_LENGTH_ALLOWED)
+
     return {
         "song": displayed_song_name,
         "artist": truncated_artist,
-        "original_song_length": len(song_name)
+        "original_song_length": len(translated_song_name)
     }
 
 def calculate_max_song_length(lines_to_display):
@@ -111,6 +116,7 @@ def calculate_max_song_length(lines_to_display):
         )
 
 def format_display_message(lines_to_display, max_song_length):
+
     message = ""
     for line_data in lines_to_display:
         song = line_data["song"]
@@ -163,8 +169,8 @@ if __name__ == "__main__":
 
     lines_arr = [UserLines(USER_IDS[0]), UserLines(USER_IDS[1])]
 
-    schedule.every().day.at(SEND_TIME).do(main_cron_job, lines_arr=lines_arr)
-    # schedule.every(5).seconds.do(main_cron_job, lines_arr=lines_arr)
+    # schedule.every().day.at(SEND_TIME).do(main_cron_job, lines_arr=lines_arr)
+    schedule.every(5).seconds.do(main_cron_job, lines_arr=lines_arr)
 
     while True:
         schedule.run_pending()

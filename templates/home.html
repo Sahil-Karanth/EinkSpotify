@@ -15,7 +15,7 @@
                     <div>
                         <strong>{{ artist.artist_name }}</strong> <small class="text-muted">({{ artist.artist_id }})</small>
                     </div>
-                    <form action="{{ url_for('remove_artist', artist_id=artist.id) }}" method="POST" style="margin: 0;">
+                    <form action="{{ url_for('remove_artist', artist_id=artist.artist_id) }}" method="POST" style="margin: 0;">
                         <button class="btn btn-sm btn-danger">Remove</button>
                     </form>
                 </li>
