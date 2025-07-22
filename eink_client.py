@@ -7,13 +7,14 @@ import json
 import os
 import schedule
 from lang_translation import transliterate_mixed
+import pickle
 
 load_dotenv()
 
 MAX_TEXT_LENGTH_ALLOWED = 18
 NUM_DISPLAY_ENTRIES = 8
 SCREEN_CHAR_WIDTH = 37
-SEND_TIME = "15:15"
+SEND_TIME = "18:15"
 
 def authenticate_and_get_token():
     """Authenticate with Firebase and get an ID token"""
@@ -151,6 +152,30 @@ class UserLines:
         self.queue = deque(maxlen=NUM_DISPLAY_ENTRIES)
 
 
+def save_queues(lines_arr, filename="saved_lines.pkl"):
+    with open(filename, 'wb') as f:
+        pickle.dump(lines_arr, f)
+
+def load_queues(filename="saved_lines.pkl"):
+    try:
+        with open(filename, 'rb') as f:
+            lines_arr = pickle.load(f)
+        return lines_arr
+    except FileNotFoundError:
+        print(f"No saved file found at {filename}")
+        return None
+    except Exception as e:
+        print(f"Error loading file: {e}")
+        return None
+
+def initialize_or_load_queues(filename="saved_lines.pkl"):
+    loaded_lines_arr = load_queues(filename)
+    if loaded_lines_arr:
+        return loaded_lines_arr
+    else:
+        # No saved file, create fresh UserLines objects
+        return [UserLines(USER_IDS[0]), UserLines(USER_IDS[1])]
+
 def main_cron_job(lines_arr):
     print("CRON JOB TIME!")
     # Check for updates
@@ -165,16 +190,18 @@ def main_cron_job(lines_arr):
 
     update_last_checked_date()
 
+    # write queues to file in case of crash
+    save_queues(lines_arr)
+
 if __name__ == "__main__":
 
     print("eink client program start")
 
-    lines_arr = [UserLines(USER_IDS[0]), UserLines(USER_IDS[1])]
+    lines_arr = initialize_or_load_queues()
 
-    # schedule.every().day.at(SEND_TIME).do(main_cron_job, lines_arr=lines_arr)
-    schedule.every(5).seconds.do(main_cron_job, lines_arr=lines_arr)
+    schedule.every().day.at(SEND_TIME).do(main_cron_job, lines_arr=lines_arr)
+    # schedule.every(5).seconds.do(main_cron_job, lines_arr=lines_arr)
 
     while True:
         schedule.run_pending()
         time.sleep(1)
-

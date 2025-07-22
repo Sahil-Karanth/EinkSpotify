@@ -60,7 +60,9 @@ def transliterate_mixed(text):
     if buffer:
         result.append(__transliterate_chunk(buffer, current_lang))
 
-    return ''.join(result)
+    english_version = ''.join(result)
+
+    return ''.join('-' if ord(char) > 127 else char for char in english_version)
 
 if __name__ == "__main__":
     text = "Hello 世界, 안녕하세요! 日本語テスト."

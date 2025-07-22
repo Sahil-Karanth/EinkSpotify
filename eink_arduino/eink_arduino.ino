@@ -14,16 +14,17 @@ Preferences preferences;
 //======================================================================
 // Firmware Specifics
 //======================================================================
-const char* mdns_hostname = "nihal-epaper";
-const String FIREBASE_URL = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device/nihal.json";
+const char* mdns_hostname = "sahil-epaper";
+const String FIREBASE_URL = "https://eink-spotify-middleman-default-rtdb.firebaseio.com/messages/from_device/sahil.json";
 
 //======================================================================
 // Constants and Declarations
 //======================================================================
-const char* config_ap_ssid = "EPaper-Config-Nihal";
+const char* config_ap_ssid = "EPaper-Config-Sahil";
 const char* config_ap_password = "configure123"; // not a secret XD
 
-int WAKE_UP_HOUR = 17; // wakeup at 6pm
+int WAKE_UP_HOUR = 17; // mDNS server live from this time for an hour
+int FIREBASE_CHECK_TIME = 18.5; // poll the firebase db at 18:30
 
 int FONT_SIZE = 16;
 int LARGE_FONT_SIZE = 24;

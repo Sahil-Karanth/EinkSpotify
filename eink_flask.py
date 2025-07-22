@@ -101,4 +101,6 @@ if __name__ == "__main__":
     user_id = sys.argv[1]
     selected_artists = load_selected_artists(user_id)
 
+    print("note if port is busy, run `npx kill-port 5000`")
+
     app.run(port=5000)
