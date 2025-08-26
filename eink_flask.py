@@ -15,6 +15,7 @@ load_dotenv()
 app = Flask(__name__)
 user_id = None
 selected_artists = []
+selected_ids_set = set() # to prevent duplicate artist adds
 
 # -----------------------------------------------------------------------------
 # flask routes
@@ -41,7 +42,11 @@ def select_artists():
 def add_artist():
     name = request.form.get("name")
     artist_id = request.form.get("id")
-    selected_artists.append({"artist_name": name, "artist_id": artist_id})
+
+    if artist_id not in selected_ids_set:
+        selected_artists.append({"artist_name": name, "artist_id": artist_id})
+        selected_ids_set.add(artist_id)
+
     return redirect(url_for("home"))
 
 
@@ -100,6 +105,10 @@ if __name__ == "__main__":
 
     user_id = sys.argv[1]
     selected_artists = load_selected_artists(user_id)
+
+    for artist in selected_artists:
+        if artist['artist_id'] not in selected_ids_set:
+            selected_ids_set.add(artist['artist_id'])
 
     print("note if port is busy, run `npx kill-port 5000`")
 

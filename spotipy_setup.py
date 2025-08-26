@@ -62,7 +62,7 @@ def load_selected_artists(user_id):
 
 
 def get_possible_artists(artist_name):
-    result = sp.search(q=f"artist:{artist_name}", type="artist", limit=10)
+    result = sp.search(q=f"artist:{artist_name}", type="artist", limit=3)
     items = result["artists"]["items"]
 
     if not items:
