@@ -8,13 +8,14 @@ import os
 import schedule
 from lang_translation import transliterate_mixed
 import pickle
+import datetime
 
 load_dotenv()
 
 MAX_TEXT_LENGTH_ALLOWED = 18
 NUM_DISPLAY_ENTRIES = 8
 SCREEN_CHAR_WIDTH = 37
-SEND_TIME = "18:15"
+SEND_TIME = "11:28"
 
 def authenticate_and_get_token():
     """Authenticate with Firebase and get an ID token"""
@@ -127,19 +128,38 @@ def format_display_message(lines_to_display, max_song_length):
         message += "\n"
     return message
 
+
+# fills lines_to_display buffer, returns an array of artists that failed (wrong ID)
 def check_for_new_releases(lines_to_display, user_id):
+
+    failed_artists = []
+
     for artist in load_selected_artists(user_id):
-        current_song, release_date = get_most_recent_song(artist["artist_id"])
-        
+
+        try:
+            current_song, release_date = get_most_recent_song(artist["artist_id"])
+        except Exception as e:
+            print(f"Error getting most recent song for {artist['artist_name']}")
+            print(f"Error type: {type(e).__name__}")
+            print(f"Error message: {e}")
+            failed_artists.append(artist['artist_name'])
+            continue
+
         # check if it's new
-        if release_date < get_last_checked_date():
+        last_checked = get_last_checked_date()
+        print(f"LAST CHECKED: {last_checked}")
+        if last_checked is None or release_date > last_checked:
             new_line = create_line_data(artist, current_song)
             lines_to_display.appendleft(new_line)
+
+        time.sleep(1)
+
+        return failed_artists
 
 def initial_message_create(lines_to_display, user_id):
     # Load initial data
     for artist in load_selected_artists(user_id):
-        song_name, _ = get_most_recent_song(artist["id"])
+        song_name, _ = get_most_recent_song(artist["artist_id"])
         line_data = create_line_data(artist, song_name)
         lines_to_display.append(line_data)
 
@@ -178,20 +198,30 @@ def initialize_or_load_queues(filename="saved_lines.pkl"):
 
 def main_cron_job(lines_arr):
     print("CRON JOB TIME!")
-    # Check for updates
+
+    log_string = f"update sent: {datetime.datetime.now().isoformat()}\n"
+
+    # Check for updates (lines_arr is the array of [sahil_lines, nanna_lines] etc)
     for lines in lines_arr:
         # modify the queue with new releases
-        check_for_new_releases(lines.queue, lines.user_id)
+        failed_artists = str(check_for_new_releases(lines.queue, lines.user_id))
+
+        log_string += f"{lines.user_id} failed artists: {failed_artists}\n"
         
         # Calculate formatting and display
         max_song_length = calculate_max_song_length(lines.queue)
         message = format_display_message(lines.queue, max_song_length)
         send_message_to_display(message, lines.user_id)
 
+    log_string += "\n"
+
     update_last_checked_date()
 
     # write queues to file in case of crash
     save_queues(lines_arr)
+
+    with open("cron_job.log", "a") as log_file:
+        log_file.write(log_string)
 
 if __name__ == "__main__":
 

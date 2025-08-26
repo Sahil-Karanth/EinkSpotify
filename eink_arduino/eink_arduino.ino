@@ -24,7 +24,7 @@ const char* config_ap_ssid = "EPaper-Config-Sahil";
 const char* config_ap_password = "configure123"; // not a secret XD
 
 int WAKE_UP_HOUR = 18; // mDNS server live from this time for an hour
-int FIREBASE_CHECK_TIME = 18.5; // poll the firebase db at 18:30
+int FIREBASE_CHECK_TIME = 18.75; // poll the firebase db at 18:30
 
 int FONT_SIZE = 16;
 int LARGE_FONT_SIZE = 24;
